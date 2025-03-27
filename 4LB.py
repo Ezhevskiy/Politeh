@@ -9,7 +9,15 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Задание 1: Иерархия пользовательских исключений
 class BaseLibraryException(Exception):
     """Базовое исключение для библиотеки."""
-    pass
+    def __init__(self, message="Ошибка библиотеки."):
+        self.message = message
+        super().__init__(self.message)
+
+    def __str__(self):
+        return f"BaseLibraryException: {self.message}"
+
+
+
 
 class BookError(BaseLibraryException):
     """Исключения, связанные с книгами."""
@@ -22,6 +30,11 @@ class BookNotFound(BookError):
 class BookUnavailable(BookError):
     """Книга недоступна для выдачи."""
     pass
+
+class InvalidBookData(BookError):
+    """Некорректные данные книги."""
+    pass
+
 
 class ReaderError(BaseLibraryException):
     """Исключения, связанные с читателями."""
@@ -174,13 +187,22 @@ class Library(BaseLibrary):
             book: Объект Book, который нужно добавить.
         """
         try:
+            if not isinstance(book.quantity, int) or book.quantity < 0:
+                raise InvalidBookData("Количество экземпляров книги должно быть целым числом больше или равно 0.")
+            if not isinstance(book.isbn, str) or len(book.isbn) == 0:
+                raise InvalidBookData("ISBN должен быть строкой.")
+
             if book.isbn in self._catalog:
-                raise ValueError(f"Книга с ISBN {book.isbn} уже есть в каталоге.")
+                raise BookError(f"Книга с ISBN {book.isbn} уже есть в каталоге.")  # Использовать BookError
             self._catalog[book.isbn] = book
             self.books.add(book)
             logging.info(f"Книга '{book.title}' добавлена в библиотеку.")
-        except ValueError as e:
+        except BookError as e:  # Ловить BookError
             logging.error(f"Ошибка при добавлении книги: {e}")
+            print(f"Ошибка при добавлении книги: {e}")  # Вывод в консоль
+        except InvalidBookData as e:
+            logging.error(f"Ошибка при добавлении книги: {e}")
+            print(f"Ошибка при добавлении книги: {e}")
         except Exception as e:
             logging.exception(f"Неожиданная ошибка при добавлении книги: {e}")
         finally:
@@ -201,8 +223,10 @@ class Library(BaseLibrary):
             logging.info(f"Книга '{book.title}' удалена из библиотеки.")
         except BookNotFound as e:
             logging.error(f"Ошибка при удалении книги: {e}")
+            print(f"Ошибка при удалении книги: {e}")  # Вывод в консоль
         except KeyError:
             logging.error(f"Книга '{book.title}' не найдена в библиотеке.")
+            print(f"Книга '{book.title}' не найдена в библиотеке.") # Вывод в консоль
         except Exception as e:
             logging.exception(f"Неожиданная ошибка при удалении книги: {e}")
         finally:
@@ -217,11 +241,12 @@ class Library(BaseLibrary):
         """
         try:
             if reader.reader_id in self._reader_database:
-                raise ValueError(f"Читатель с ID {reader.reader_id} уже зарегистрирован.")
+                raise ReaderError(f"Читатель с ID {reader.reader_id} уже зарегистрирован.") # Использовать ReaderError
             self._reader_database[reader.reader_id] = reader
             logging.info(f"Читатель '{reader.first_name} {reader.last_name}' добавлен в библиотеку.")
-        except ValueError as e:
+        except ReaderError as e: # Ловить ReaderError
             logging.error(f"Ошибка при добавлении читателя: {e}")
+            print(f"Ошибка при добавлении читателя: {e}") # Вывод в консоль
         except Exception as e:
             logging.exception(f"Неожиданная ошибка при добавлении читателя: {e}")
         finally:
@@ -241,8 +266,10 @@ class Library(BaseLibrary):
             logging.info(f"Читатель '{reader.first_name} {reader.last_name}' удален из библиотеки.")
         except ReaderNotFound as e:
             logging.error(f"Ошибка при удалении читателя: {e}")
+            print(f"Ошибка при удалении читателя: {e}")  # Вывод в консоль
         except KeyError:
             logging.error(f"Читатель '{reader.first_name} {reader.last_name}' не найден в библиотеке.")
+            print(f"Читатель '{reader.first_name} {reader.last_name}' не найден в библиотеке.") # Вывод в консоль
         except Exception as e:
             logging.exception(f"Неожиданная ошибка при удалении читателя: {e}")
         finally:
@@ -289,10 +316,13 @@ class Library(BaseLibrary):
             logging.info(f"Книга '{book.title}' выдана читателю '{reader.first_name} {reader.last_name}'.")
         except BookNotFound as e:
             logging.error(f"Ошибка: {e}")
+            print(f"Ошибка: {e}") # Вывод в консоль
         except ReaderNotFound as e:
             logging.error(f"Ошибка: {e}")
+            print(f"Ошибка: {e}") # Вывод в консоль
         except BookUnavailable as e:
             logging.error(f"Ошибка: {e}")
+            print(f"Ошибка: {e}") # Вывод в консоль
         except Exception as e:
             logging.exception(f"Неожиданная ошибка: {e}")
         finally:
@@ -320,6 +350,7 @@ class Library(BaseLibrary):
 
         except ValueError as e:
             logging.error(f"Ошибка при возврате книги: {e}")
+            print(f"Ошибка при возврате книги: {e}") # Вывод в консоль
         except Exception as e:
             logging.exception(f"Неожиданная ошибка при возврате книги: {e}")
         finally:
@@ -461,6 +492,7 @@ if __name__ == "__main__":
     book1 = Book("Властелин колец", author1, "978-0618260264", "Фэнтези", 5)
     book2 = Book("Убийство в Восточном экспрессе", author2, "978-0062073481", "Детектив", 3)
     book3 = Book("Десять негритят", author2, "978-0062073481", "Детектив", 0) # Создаем книгу с тем же ISBN, что и book2, кол-во = 0
+    book4 = Book("Некорректная книга", author1, 123, "Фантастика", "много");
 
     print(f"Книга1 меньше Книги2: {book1 < book2}")
     print(f"Книга2 больше Книги1: {book2 > book1}")
@@ -472,7 +504,15 @@ if __name__ == "__main__":
     # Добавление книг в библиотеку
     library.add_book(book1)
     library.add_book(book2)
-    library.add_book(book3) # Книга с дублирующимся ISBN не будет добавлена из-за set
+    try:
+        library.add_book(book2) # Повторное добавление книги для демонстрации BookError
+    except Exception as e:
+        print(f"Поймано исключение при повторном добавлении книги: {e}")
+    try:
+        library.add_book(book4) # Добавление книги с некорректными данными
+    except InvalidBookData as e:
+        print(f"Ошибка при добавлении книги book4: {e}")
+
 
     # Создание читателей
     reader1 = Reader("Иван", "Иванов", "12345")
@@ -481,6 +521,11 @@ if __name__ == "__main__":
     # Добавление читателей в библиотеку
     library.add_reader(reader1)
     library.add_reader(reader2)
+    try:
+        library.add_reader(reader1) # Повторное добавление читателя для демонстрации ReaderError
+    except Exception as e:
+        print(f"Поймано исключение при повторном добавлении читателя: {e}")
+
 
     # Вывод информации о книгах и читателях в библиотеке
     library.display_books()
